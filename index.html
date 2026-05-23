@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklist de Mentoria</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --bg: #FAF8F4;
+    --surface: #FFFFFF;
+    --surface2: #F3F0EA;
+    --text: #1C1A17;
+    --text-muted: #7A7570;
+    --text-light: #B0ADA8;
+    --accent: #2E6B50;
+    --accent-light: #E8F2ED;
+    --accent-mid: #5A9E7C;
+    --border: #E5E1D8;
+    --border-light: #EFECE6;
+    --danger: #C0392B;
+    --danger-bg: #FDECEA;
+    --serif: 'DM Serif Display', Georgia, serif;
+    --sans: 'DM Sans', system-ui, sans-serif;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; line-height: 1.6; }
+
+  /* ── Layout ── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── Auth ── */
+  .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 36px 32px; width: 100%; max-width: 380px; }
+  .auth-card h1 { font-family: var(--serif); font-size: 22px; font-weight: 400; margin-bottom: 4px; }
+  .auth-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+  .field input { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font-family: var(--sans); font-size: 14px; background: var(--bg); color: var(--text); outline: none; transition: border-color .2s; }
+  .field input:focus { border-color: var(--accent); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 18px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: transparent; cursor: pointer; font-family: var(--sans); font-size: 14px; color: var(--text); transition: background .15s; }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: #245840; }
+  .btn-full { width: 100%; }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+  .btn-danger { color: var(--danger); border-color: var(--danger); }
+  .btn-danger:hover { background: var(--danger-bg); }
+  .auth-switch { text-align: center; margin-top: 18px; font-size: 13px; color: var(--text-muted); }
+  .auth-switch a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .error-msg { background: var(--danger-bg); color: var(--danger); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
+  .error-msg.show { display: block; }
+
+  /* ── Header ── */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; position: sticky; top: 0; z-index: 100; }
+  .header-inner { max-width: 760px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 14px 0; gap: 12px; }
+  .header-left h1 { font-family: var(--serif); font-size: 18px; font-weight: 400; }
+  .header-left p { font-size: 12px; color: var(--text-muted); }
+
+  /* ── Main ── */
+  main { max-width: 760px; margin: 0 auto; padding: 28px 24px; }
+
+  /* ── Stats ── */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; }
+  .stat-card .val { font-size: 26px; font-weight: 500; color: var(--text); }
+  .stat-card .lbl { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── Fases ── */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .section-title { font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+  .phase-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
+  .phase-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer; user-select: none; }
+  .phase-head:hover { background: var(--surface2); }
+  .phase-num { width: 28px; height: 28px; border-radius: 50%; background: var(--surface2); color: var(--text-muted); font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .phase-name { flex: 1; font-weight: 500; font-size: 14px; }
+  .phase-meta { display: flex; align-items: center; gap: 10px; }
+  .prog-bar { height: 4px; background: var(--border); border-radius: 2px; width: 60px; }
+  .prog-fill { height: 4px; border-radius: 2px; background: var(--accent); transition: width .3s; }
+  .prog-count { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  .chevron { color: var(--text-light); transition: transform .2s; font-size: 16px; }
+  .phase-card.open .chevron { transform: rotate(180deg); }
+  .phase-body { display: none; border-top: 1px solid var(--border-light); padding: 0 18px 14px; }
+  .phase-card.open .phase-body { display: block; }
+
+  /* ── Itens ── */
+  .item-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-light); }
+  .item-row:last-of-type { border-bottom: none; }
+  .cb { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid var(--border); cursor: pointer; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+  .cb.done { background: var(--accent); border-color: var(--accent); }
+  .cb.done::after { content: ''; display: block; width: 5px; height: 9px; border: 2px solid #fff; border-top: none; border-left: none; transform: rotate(45deg) translateY(-1px); }
+  .item-content { flex: 1; }
+  .item-text { font-size: 14px; line-height: 1.5; }
+  .item-text.done { text-decoration: line-through; color: var(--text-muted); }
+  .ev-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  .ev-link { font-size: 12px; color: var(--accent); display: flex; align-items: center; gap: 4px; text-decoration: none; }
+  .ev-link:hover { text-decoration: underline; }
+  .ev-btn { font-size: 11px; color: var(--text-muted); cursor: pointer; background: none; border: none; font-family: var(--sans); padding: 0; display: flex; align-items: center; gap: 3px; }
+  .ev-btn:hover { color: var(--accent); }
+  .del-btn { background: none; border: none; cursor: pointer; color: var(--text-light); padding: 2px; border-radius: 4px; display: flex; align-items: center; }
+  .del-btn:hover { color: var(--danger); background: var(--danger-bg); }
+
+  /* ── Adicionar ── */
+  .add-row { display: flex; gap: 8px; margin-top: 12px; }
+  .add-input { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; font-family: var(--sans); font-size: 13px; background: var(--bg); color: var(--text); outline: none; }
+  .add-input:focus { border-color: var(--accent); }
+  .add-fase-row { display: flex; gap: 8px; margin-top: 16px; }
+
+  /* ── Painel Mentora ── */
+  .mentorada-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 10px; cursor: pointer; transition: border-color .15s; }
+  .mentorada-card:hover { border-color: var(--accent-mid); }
+  .mentorada-row { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-light); color: var(--accent); font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .mentorada-info { flex: 1; }
+  .mentorada-nome { font-weight: 500; font-size: 14px; }
+  .mentorada-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 20px; font-weight: 500; }
+  .badge-ok { background: var(--accent-light); color: var(--accent); }
+  .badge-pend { background: var(--surface2); color: var(--text-muted); }
+  .badge-cur { background: #EAF3FB; color: #1A5F8A; }
+
+  /* ── Modal evidência ── */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 24px; display: none; }
+  .overlay.show { display: flex; }
+  .modal { background: var(--surface); border-radius: var(--radius); padding: 28px; width: 100%; max-width: 400px; }
+  .modal h3 { font-family: var(--serif); font-size: 18px; font-weight: 400; margin-bottom: 6px; }
+  .modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+  /* ── Toast ── */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; opacity: 0; transition: all .25s; pointer-events: none; z-index: 300; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Loading ── */
+  .loading { text-align: center; padding: 48px; color: var(--text-muted); font-size: 14px; }
+  .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 520px) {
+    .stats-row { grid-template-columns: repeat(3,1fr); gap: 6px; }
+    .stat-card { padding: 12px 8px; }
+    .stat-card .val { font-size: 20px; }
+    .auth-card { padding: 28px 20px; }
+    .prog-bar { width: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TELA: LOGIN -->
+<div class="screen active" id="sc-auth">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1>Checklist de Mentoria</h1>
+      <p id="auth-subtitle">Acesse seu espaço de acompanhamento.</p>
+      <div class="error-msg" id="auth-error"></div>
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="auth-email" placeholder="seu@email.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="field" id="field-nome" style="display:none">
+        <label>Seu nome</label>
+        <input type="text" id="auth-nome" placeholder="Como quer ser chamada">
+      </div>
+      <button class="btn btn-primary btn-full" id="auth-btn" onclick="handleAuth()">Entrar</button>
+      <div class="auth-switch">
+        <span id="auth-switch-text">Primeira vez? </span>
+        <a onclick="toggleAuthMode()">Criar conta</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TELA: MENTORADA -->
+<div class="screen" id="sc-mentorada">
+  <header>
+    <div class="header-inner">
+      <div class="header-left">
+        <h1>Meu checklist</h1>
+        <p id="mentorada-subtitle">carregando...</p>
+      </div>
+      <button class="btn btn-sm" onclick="logout()">Sair</button>
+    </div>
+  </header>
+  <main>
+    <div class="stats-row">
+      <div class="stat-card"><div class="val" id="m-done">—</div><div class="lbl">concluídos</div></div>
+      <div class="stat-card"><div class="val" id="m-total">—</div><div class="lbl">no total</div></div>
+      <div class="stat-card"><div class="val" id="m-pct">—</div><div class="lbl">progresso</div></div>
+    </div>
+    <div class="section-header">
+      <span class="section-title">Minhas fases</span>
+    </div>
+    <div id="fases-list"><div class="loading"><span class="spinner"></span>Carregando...</div></div>
+    <div class="add-fase-row">
+      <input class="add-input" id="nova-fase" placeholder="Nome da nova fase..." onkeydown="if(event.key==='Enter') addFase()">
+      <button class="btn btn-primary" onclick="addFase()">+ Fase</button>
+    </div>
+  </main>
+</div>
+
+<!-- TELA: MENTORA -->
+<div class="screen" id="sc-mentora">
+  <header>
+    <div class="header-inner">
+      <div class="header-left">
+        <h1>Painel da mentora</h1>
+        <p id="mentora-subtitle">carregando...</p>
+      </div>
+      <button class="btn btn-sm" onclick="logout()">Sair</button>
+    </div>
+  </header>
+  <main>
+    <div class="stats-row">
+      <div class="stat-card"><div class="val" id="p-total">—</div><div class="lbl">mentoradas</div></div>
+      <div class="stat-card"><div class="val" id="p-media">—</div><div class="lbl">média geral</div></div>
+      <div class="stat-card"><div class="val" id="p-concluidas">—</div><div class="lbl">concluíram</div></div>
+    </div>
+    <div class="section-header">
+      <span class="section-title">Mentoradas</span>
+    </div>
+    <div id="mentoradas-list"><div class="loading"><span class="spinner"></span>Carregando...</div></div>
+
+    <!-- detalhe de uma mentorada -->
+    <div id="detalhe-wrap" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;margin-top:8px">
+        <button class="btn btn-sm" onclick="fecharDetalhe()">← Voltar</button>
+        <span id="detalhe-nome" style="font-weight:500;font-size:15px"></span>
+      </div>
+      <div id="detalhe-fases"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL EVIDÊNCIA -->
+<div class="overlay" id="overlay-ev">
+  <div class="modal">
+    <h3>Adicionar evidência</h3>
+    <p>Cole o link do Google Drive, Notion, Instagram ou qualquer outro documento.</p>
+    <div class="field">
+      <label>Link da evidência</label>
+      <input type="url" id="ev-input" placeholder="https://docs.google.com/...">
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="fecharEv()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEv()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const { createClient } = supabase
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+let currentUser = null
+let currentProfile = null
+let evItemId = null
+
+// ── AUTH ──────────────────────────────────────────────────────
+let isLoginMode = true
+
+function toggleAuthMode() {
+  isLoginMode = !isLoginMode
+  document.getElementById('field-nome').style.display = isLoginMode ? 'none' : 'block'
+  document.getElementById('auth-btn').textContent = isLoginMode ? 'Entrar' : 'Criar conta'
+  document.getElementById('auth-switch-text').textContent = isLoginMode ? 'Primeira vez? ' : 'Já tem conta? '
+  document.querySelector('.auth-switch a').textContent = isLoginMode ? 'Criar conta' : 'Entrar'
+  document.getElementById('auth-subtitle').textContent = isLoginMode
+    ? 'Acesse seu espaço de acompanhamento.'
+    : 'Crie sua conta para começar.'
+  showError('')
+}
+
+async function handleAuth() {
+  const email = document.getElementById('auth-email').value.trim()
+  const password = document.getElementById('auth-password').value
+  const nome = document.getElementById('auth-nome').value.trim()
+  const btn = document.getElementById('auth-btn')
+
+  if (!email || !password) return showError('Preencha e-mail e senha.')
+  if (!isLoginMode && !nome) return showError('Informe seu nome.')
+
+  btn.disabled = true
+  btn.textContent = isLoginMode ? 'Entrando...' : 'Criando conta...'
+  showError('')
+
+  let result
+  if (isLoginMode) {
+    result = await sb.auth.signInWithPassword({ email, password })
+  } else {
+    result = await sb.auth.signUp({
+      email, password,
+      options: { data: { nome, role: 'mentorada' } }
+    })
+  }
+
+  btn.disabled = false
+  btn.textContent = isLoginMode ? 'Entrar' : 'Criar conta'
+
+  if (result.error) return showError(result.error.message)
+  if (!isLoginMode) showToast('Conta criada! Verifique seu e-mail se necessário.')
+}
+
+function showError(msg) {
+  const el = document.getElementById('auth-error')
+  el.textContent = msg
+  el.classList.toggle('show', !!msg)
+}
+
+async function logout() {
+  await sb.auth.signOut()
+}
+
+// ── SESSION ──────────────────────────────────────────────────
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    currentUser = session.user
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single()
+    currentProfile = profile
+    if (profile?.role === 'mentora') {
+      showScreen('mentora')
+      carregarPainelMentora()
+    } else {
+      showScreen('mentorada')
+      carregarMentorada()
+    }
+  } else {
+    currentUser = null
+    currentProfile = null
+    showScreen('auth')
+  }
+})
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'))
+  document.getElementById('sc-' + name).classList.add('active')
+}
+
+// ── MENTORADA ─────────────────────────────────────────────────
+async function carregarMentorada() {
+  document.getElementById('mentorada-subtitle').textContent = currentProfile?.nome || currentUser.email
+  await renderFases()
+}
+
+async function renderFases() {
+  const list = document.getElementById('fases-list')
+  list.innerHTML = '<div class="loading"><span class="spinner"></span>Carregando...</div>'
+
+  const { data: fases } = await sb.from('fases')
+    .select('*, itens(*)')
+    .eq('user_id', currentUser.id)
+    .order('ordem')
+
+  if (!fases || fases.length === 0) {
+    list.innerHTML = '<div class="loading" style="padding:24px">Nenhuma fase ainda. Adicione sua primeira fase abaixo.</div>'
+    atualizarStats(0, 0)
+    return
+  }
+
+  let totalDone = 0, totalItens = 0
+  list.innerHTML = ''
+
+  fases.forEach((fase, fi) => {
+    const itens = (fase.itens || []).sort((a,b) => a.ordem - b.ordem)
+    const done = itens.filter(i => i.concluido).length
+    const total = itens.length
+    const pct = total ? Math.round(done / total * 100) : 0
+    totalDone += done
+    totalItens += total
+
+    const card = document.createElement('div')
+    card.className = 'phase-card' + (fi === 0 ? ' open' : '')
+    card.id = 'fase-' + fase.id
+
+    const itensHtml = itens.map(item => `
+      <div class="item-row" id="item-${item.id}">
+        <div class="cb ${item.concluido ? 'done' : ''}" onclick="toggleItem('${item.id}', ${!item.concluido}, '${fase.id}')"></div>
+        <div class="item-content">
+          <div class="item-text ${item.concluido ? 'done' : ''}">${escHtml(item.texto)}</div>
+          <div class="ev-row">
+            ${item.evidencia_url
+              ? `<a class="ev-link" href="${escHtml(item.evidencia_url)}" target="_blank" rel="noopener">
+                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                   Ver evidência
+                 </a>`
+              : `<button class="ev-btn" onclick="abrirEv('${item.id}')">
+                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                   Adicionar evidência
+                 </button>`
+            }
+          </div>
+        </div>
+        <button class="del-btn" onclick="deletarItem('${item.id}', '${fase.id}')" title="Remover tarefa">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        </button>
+      </div>
+    `).join('')
+
+    card.innerHTML = `
+      <div class="phase-head" onclick="toggleFase('${fase.id}')">
+        <div class="phase-num">${fi + 1}</div>
+        <div class="phase-name">${escHtml(fase.titulo)}</div>
+        <div class="phase-meta">
+          <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+          <span class="prog-count">${done}/${total}</span>
+        </div>
+        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="phase-body">
+        ${itensHtml || '<div style="padding:12px 0;font-size:13px;color:var(--text-muted)">Nenhuma tarefa ainda.</div>'}
+        <div class="add-row">
+          <input class="add-input" id="ni-${fase.id}" placeholder="Nova tarefa..." onkeydown="if(event.key==='Enter') addItem('${fase.id}')">
+          <button class="btn btn-sm btn-primary" onclick="addItem('${fase.id}')">+ Tarefa</button>
+          <button class="btn btn-sm btn-danger" onclick="deletarFase('${fase.id}')">Remover fase</button>
+        </div>
+      </div>
+    `
+    list.appendChild(card)
+  })
+
+  atualizarStats(totalDone, totalItens)
+}
+
+function toggleFase(faseId) {
+  const card = document.getElementById('fase-' + faseId)
+  card.classList.toggle('open')
+}
+
+function atualizarStats(done, total) {
+  document.getElementById('m-done').textContent = done
+  document.getElementById('m-total').textContent = total
+  document.getElementById('m-pct').textContent = total ? Math.round(done / total * 100) + '%' : '0%'
+}
+
+async function toggleItem(itemId, concluido, faseId) {
+  await sb.from('itens').update({ concluido, updated_at: new Date().toISOString() }).eq('id', itemId)
+  await renderFases()
+}
+
+async function addItem(faseId) {
+  const inp = document.getElementById('ni-' + faseId)
+  const texto = inp.value.trim()
+  if (!texto) return
+  const { data: itens } = await sb.from('itens').select('ordem').eq('fase_id', faseId).order('ordem', { ascending: false }).limit(1)
+  const ordem = itens?.length ? itens[0].ordem + 1 : 0
+  await sb.from('itens').insert({ fase_id: faseId, user_id: currentUser.id, texto, ordem })
+  inp.value = ''
+  await renderFases()
+  showToast('Tarefa adicionada!')
+}
+
+async function deletarItem(itemId, faseId) {
+  if (!confirm('Remover esta tarefa?')) return
+  await sb.from('itens').delete().eq('id', itemId)
+  await renderFases()
+}
+
+async function addFase() {
+  const inp = document.getElementById('nova-fase')
+  const titulo = inp.value.trim()
+  if (!titulo) return
+  const { data: fases } = await sb.from('fases').select('ordem').eq('user_id', currentUser.id).order('ordem', { ascending: false }).limit(1)
+  const ordem = fases?.length ? fases[0].ordem + 1 : 0
+  await sb.from('fases').insert({ user_id: currentUser.id, titulo, ordem })
+  inp.value = ''
+  await renderFases()
+  showToast('Fase adicionada!')
+}
+
+async function deletarFase(faseId) {
+  if (!confirm('Remover esta fase e todas as tarefas dela?')) return
+  await sb.from('fases').delete().eq('id', faseId)
+  await renderFases()
+}
+
+// ── EVIDÊNCIA ─────────────────────────────────────────────────
+function abrirEv(itemId) {
+  evItemId = itemId
+  document.getElementById('ev-input').value = ''
+  document.getElementById('overlay-ev').classList.add('show')
+}
+
+function fecharEv() {
+  document.getElementById('overlay-ev').classList.remove('show')
+  evItemId = null
+}
+
+async function salvarEv() {
+  const url = document.getElementById('ev-input').value.trim()
+  if (!url) return showToast('Cole um link válido.')
+  await sb.from('itens').update({ evidencia_url: url }).eq('id', evItemId)
+  fecharEv()
+  await renderFases()
+  showToast('Evidência salva!')
+}
+
+// ── MENTORA ───────────────────────────────────────────────────
+async function carregarPainelMentora() {
+  document.getElementById('mentora-subtitle').textContent = currentProfile?.nome || 'Mentora'
+
+  const { data: mentoradas } = await sb.from('profiles')
+    .select('*')
+    .eq('role', 'mentorada')
+    .order('created_at')
+
+  const list = document.getElementById('mentoradas-list')
+
+  if (!mentoradas || mentoradas.length === 0) {
+    list.innerHTML = '<div class="loading" style="padding:24px">Nenhuma mentorada cadastrada ainda.</div>'
+    document.getElementById('p-total').textContent = 0
+    document.getElementById('p-media').textContent = '—'
+    document.getElementById('p-concluidas').textContent = 0
+    return
+  }
+
+  const stats = await Promise.all(mentoradas.map(async m => {
+    const { data: itens } = await sb.from('itens').select('concluido').eq('user_id', m.id)
+    const total = itens?.length || 0
+    const done = itens?.filter(i => i.concluido).length || 0
+    const pct = total ? Math.round(done / total * 100) : 0
+    return { ...m, done, total, pct }
+  }))
+
+  const media = stats.length ? Math.round(stats.reduce((s, m) => s + m.pct, 0) / stats.length) : 0
+  const concluidas = stats.filter(m => m.pct === 100 && m.total > 0).length
+
+  document.getElementById('p-total').textContent = stats.length
+  document.getElementById('p-media').textContent = media + '%'
+  document.getElementById('p-concluidas').textContent = concluidas
+
+  list.innerHTML = ''
+  stats.forEach(m => {
+    const initials = m.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+    const badgeClass = m.total === 0 ? 'badge-pend' : m.pct === 100 ? 'badge-ok' : 'badge-cur'
+    const badgeText = m.total === 0 ? 'não iniciou' : m.pct === 100 ? 'concluída' : 'em andamento'
+
+    const card = document.createElement('div')
+    card.className = 'mentorada-card'
+    card.onclick = () => verDetalhe(m)
+    card.innerHTML = `
+      <div class="mentorada-row">
+        <div class="avatar">${initials}</div>
+        <div class="mentorada-info">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span class="mentorada-nome">${escHtml(m.nome)}</span>
+            <span class="badge ${badgeClass}">${badgeText}</span>
+          </div>
+          <div class="prog-bar" style="width:100%;margin:6px 0 2px"><div class="prog-fill" style="width:${m.pct}%"></div></div>
+          <div class="mentorada-sub">${m.pct}% · ${m.done} de ${m.total} itens</div>
+        </div>
+      </div>
+    `
+    list.appendChild(card)
+  })
+}
+
+async function verDetalhe(mentorada) {
+  document.getElementById('mentoradas-list').style.display = 'none'
+  const wrap = document.getElementById('detalhe-wrap')
+  wrap.style.display = 'block'
+  document.getElementById('detalhe-nome').textContent = mentorada.nome
+
+  const { data: fases } = await sb.from('fases')
+    .select('*, itens(*)')
+    .eq('user_id', mentorada.id)
+    .order('ordem')
+
+  const container = document.getElementById('detalhe-fases')
+  if (!fases || fases.length === 0) {
+    container.innerHTML = '<div class="loading" style="padding:24px">Nenhuma fase cadastrada ainda.</div>'
+    return
+  }
+
+  container.innerHTML = ''
+  fases.forEach((fase, fi) => {
+    const itens = (fase.itens || []).sort((a,b) => a.ordem - b.ordem)
+    const done = itens.filter(i => i.concluido).length
+    const total = itens.length
+    const pct = total ? Math.round(done / total * 100) : 0
+
+    const card = document.createElement('div')
+    card.className = 'phase-card open'
+    card.innerHTML = `
+      <div class="phase-head" onclick="this.closest('.phase-card').classList.toggle('open')">
+        <div class="phase-num">${fi + 1}</div>
+        <div class="phase-name">${escHtml(fase.titulo)}</div>
+        <div class="phase-meta">
+          <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+          <span class="prog-count">${done}/${total}</span>
+        </div>
+        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="phase-body">
+        ${itens.map(item => `
+          <div class="item-row">
+            <div class="cb ${item.concluido ? 'done' : ''}" style="cursor:default"></div>
+            <div class="item-content">
+              <div class="item-text ${item.concluido ? 'done' : ''}">${escHtml(item.texto)}</div>
+              ${item.evidencia_url ? `<div class="ev-row"><a class="ev-link" href="${escHtml(item.evidencia_url)}" target="_blank" rel="noopener">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                Ver evidência</a></div>` : ''}
+            </div>
+          </div>
+        `).join('') || '<div style="padding:10px 0;font-size:13px;color:var(--text-muted)">Nenhuma tarefa.</div>'}
+      </div>
+    `
+    container.appendChild(card)
+  })
+}
+
+function fecharDetalhe() {
+  document.getElementById('detalhe-wrap').style.display = 'none'
+  document.getElementById('mentoradas-list').style.display = 'block'
+}
+
+// ── UTILS ─────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), 3000)
+}
+
+document.getElementById('overlay-ev').addEventListener('click', function(e) {
+  if (e.target === this) fecharEv()
+})
+</script>
+</body>
+</html>
