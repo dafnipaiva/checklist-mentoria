@@ -9,7 +9,8 @@
 <script>
   const SUPABASE_URL = 'https://rhdxfrfdngubofontiig.supabase.co'
   const SUPABASE_ANON_KEY = 'sb_publishable_aHYOq9s9Uu_vTDHRQXrtbA_JYYzxuus'
-</script><style>
+</script>
+<style>
   :root {
     --bg: #FAF8F4;
     --surface: #FFFFFF;
@@ -329,10 +330,25 @@ async function logout() {
 }
 
 // ── SESSION ──────────────────────────────────────────────────
-sb.auth.onAuthStateChange(async (event, session) => {
+sb.auth.onAuthStateChange((event, session) => {
   if (session?.user) {
     currentUser = session.user
-    const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single()
+    carregarApp()
+  } else {
+    currentUser = null
+    currentProfile = null
+    showScreen('auth')
+  }
+})
+
+async function carregarApp() {
+  try {
+    const { data: profile, error } = await sb
+      .from('profiles')
+      .select('*')
+      .eq('id', currentUser.id)
+      .single()
+    if (error) { console.error('perfil:', error); showScreen('auth'); return }
     currentProfile = profile
     if (profile?.role === 'mentora') {
       showScreen('mentora')
@@ -341,12 +357,11 @@ sb.auth.onAuthStateChange(async (event, session) => {
       showScreen('mentorada')
       carregarMentorada()
     }
-  } else {
-    currentUser = null
-    currentProfile = null
+  } catch(e) {
+    console.error('erro:', e)
     showScreen('auth')
   }
-})
+}
 
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'))
