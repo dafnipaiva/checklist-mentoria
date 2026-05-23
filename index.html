@@ -6,10 +6,7 @@
 <title>Checklist de Mentoria</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  const SUPABASE_URL = 'https://rhdxfrfdngubofontiig.supabase.co'
-  const SUPABASE_ANON_KEY = 'sb_publishable_aHYOq9s9Uu_vTDHRQXrtbA_JYYzxuus'
-</script>
+<script src="config.js"></script>
 <style>
   :root {
     --bg: #FAF8F4;
@@ -179,9 +176,6 @@
         <span id="auth-switch-text">Primeira vez? </span>
         <a onclick="toggleAuthMode()">Criar conta</a>
       </div>
-      <div class="auth-switch" id="forgot-wrap" style="margin-top:8px">
-        <a onclick="esqueceuSenha()">Esqueci minha senha</a>
-      </div>
     </div>
   </div>
 </div>
@@ -302,32 +296,24 @@ async function handleAuth() {
   btn.textContent = isLoginMode ? 'Entrando...' : 'Criando conta...'
   showError('')
 
-  let result
-  if (isLoginMode) {
-    result = await sb.auth.signInWithPassword({ email, password })
-  } else {
-    result = await sb.auth.signUp({
-      email, password,
-      options: { data: { nome, role: 'mentorada' } }
-    })
+  try {
+    let result
+    if (isLoginMode) {
+      result = await sb.auth.signInWithPassword({ email, password })
+    } else {
+      result = await sb.auth.signUp({
+        email, password,
+        options: { data: { nome, role: 'mentorada' } }
+      })
+    }
+    if (result.error) showError(result.error.message)
+    else if (!isLoginMode) showToast('Conta criada!')
+  } catch(e) {
+    showError('Erro de conexão. Tente novamente.')
+  } finally {
+    btn.disabled = false
+    btn.textContent = isLoginMode ? 'Entrar' : 'Criar conta'
   }
-
-  btn.disabled = false
-  btn.textContent = isLoginMode ? 'Entrar' : 'Criar conta'
-
-  if (result.error) return showError(result.error.message)
-  if (!isLoginMode) showToast('Conta criada! Verifique seu e-mail se necessário.')
-}
-
-async function esqueceuSenha() {
-  const email = document.getElementById('auth-email').value.trim()
-  if (!email) return showError('Digite seu e-mail acima antes de continuar.')
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://dafnipaiva.github.io/checklist-mentoria'
-  })
-  if (error) return showError(error.message)
-  showError('')
-  showToast('Link de redefinição enviado para o seu e-mail!')
 }
 
 function showError(msg) {
