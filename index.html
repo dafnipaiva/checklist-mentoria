@@ -380,7 +380,7 @@ async function renderFases() {
   document.querySelectorAll('.phase-card.open').forEach(el => abertas.add(el.id))
 
   const list = document.getElementById('fases-list')
-  list.innerHTML = '<div class="loading"><span class="spinner"></span>Carregando...</div>
+  list.innerHTML = '<div class="loading"><span class="spinner"></span>Carregando...</div>'
 
   const { data: fases } = await sb.from('fases')
     .select('*, itens(*)')
