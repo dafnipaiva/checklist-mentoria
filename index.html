@@ -375,8 +375,12 @@ async function carregarMentorada() {
 }
 
 async function renderFases() {
+  // Lembra quais fases estão abertas antes de re-renderizar
+  const abertas = new Set()
+  document.querySelectorAll('.phase-card.open').forEach(el => abertas.add(el.id))
+
   const list = document.getElementById('fases-list')
-  list.innerHTML = '<div class="loading"><span class="spinner"></span>Carregando...</div>'
+  list.innerHTML = '<div class="loading"><span class="spinner"></span>Carregando...</div>
 
   const { data: fases } = await sb.from('fases')
     .select('*, itens(*)')
@@ -401,14 +405,14 @@ async function renderFases() {
     totalItens += total
 
     const card = document.createElement('div')
-    card.className = 'phase-card' + (fi === 0 ? ' open' : '')
+    card.className = 'phase-card' + (abertas.size === 0 && fi === 0 ? ' open' : abertas.has('fase-' + fase.id) ? ' open' : '')
     card.id = 'fase-' + fase.id
 
-    const itensHtml = itens.map(item => `
+    const itensHtml = itens.map((item, idx) => `
       <div class="item-row" id="item-${item.id}">
         <div class="cb ${item.concluido ? 'done' : ''}" onclick="toggleItem('${item.id}', ${!item.concluido}, '${fase.id}')"></div>
         <div class="item-content">
-          <div class="item-text ${item.concluido ? 'done' : ''}">${escHtml(item.texto)}</div>
+          <div class="item-text ${item.concluido ? 'done' : ''}" id="txt-${item.id}">${escHtml(item.texto)}</div>
           <div class="ev-row">
             ${item.evidencia_url
               ? `<a class="ev-link" href="${escHtml(item.evidencia_url)}" target="_blank" rel="noopener">
@@ -422,6 +426,17 @@ async function renderFases() {
             }
           </div>
         </div>
+        <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">
+          <button class="del-btn" onclick="moverItem('${item.id}', '${fase.id}', ${item.ordem}, 'cima')" title="Mover para cima" ${idx === 0 ? 'style="opacity:0.3;pointer-events:none"' : ''}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+          <button class="del-btn" onclick="moverItem('${item.id}', '${fase.id}', ${item.ordem}, 'baixo')" title="Mover para baixo" ${idx === itens.length - 1 ? 'style="opacity:0.3;pointer-events:none"' : ''}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+        <button class="del-btn" onclick="editarItem('${item.id}', '${fase.id}')" title="Editar tarefa">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
         <button class="del-btn" onclick="deletarItem('${item.id}', '${fase.id}')" title="Remover tarefa">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
         </button>
@@ -484,6 +499,42 @@ async function addItem(faseId) {
 async function deletarItem(itemId, faseId) {
   if (!confirm('Remover esta tarefa?')) return
   await sb.from('itens').delete().eq('id', itemId)
+  await renderFases()
+}
+
+async function editarItem(itemId, faseId) {
+  const el = document.getElementById('txt-' + itemId)
+  if (!el) return
+  const textoAtual = el.textContent
+  const input = document.createElement('input')
+  input.className = 'add-input'
+  input.value = textoAtual
+  input.style.margin = '0'
+  input.style.fontSize = '14px'
+  el.replaceWith(input)
+  input.focus()
+  input.select()
+  const salvar = async () => {
+    const novo = input.value.trim()
+    if (novo && novo !== textoAtual) {
+      await sb.from('itens').update({ texto: novo }).eq('id', itemId)
+      showToast('Tarefa atualizada!')
+    }
+    await renderFases()
+  }
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') renderFases() })
+  input.addEventListener('blur', salvar)
+}
+
+async function moverItem(itemId, faseId, ordemAtual, direcao) {
+  const { data: itens } = await sb.from('itens').select('id, ordem').eq('fase_id', faseId).order('ordem')
+  if (!itens) return
+  const idx = itens.findIndex(i => i.id === itemId)
+  const swapIdx = direcao === 'cima' ? idx - 1 : idx + 1
+  if (swapIdx < 0 || swapIdx >= itens.length) return
+  const swapItem = itens[swapIdx]
+  await sb.from('itens').update({ ordem: swapItem.ordem }).eq('id', itemId)
+  await sb.from('itens').update({ ordem: ordemAtual }).eq('id', swapItem.id)
   await renderFases()
 }
 
