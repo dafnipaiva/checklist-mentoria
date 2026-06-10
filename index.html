@@ -619,9 +619,8 @@ async function carregarPainelMentora() {
 
     const card = document.createElement('div')
     card.className = 'mentorada-card'
-    card.onclick = () => verDetalhe(m)
     card.innerHTML = `
-      <div class="mentorada-row">
+      <div class="mentorada-row" onclick="verDetalhe(${JSON.stringify(JSON.stringify(m))})" style="cursor:pointer">
         <div class="avatar">${initials}</div>
         <div class="mentorada-info">
           <div style="display:flex;align-items:center;justify-content:space-between">
@@ -632,12 +631,29 @@ async function carregarPainelMentora() {
           <div class="mentorada-sub">${m.pct}% · ${m.done} de ${m.total} itens</div>
         </div>
       </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px;padding-top:10px;border-top:1px solid var(--border-light)">
+        <button class="btn btn-sm btn-danger" onclick="deletarMentorada('${m.id}', '${escHtml(m.nome)}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          Remover mentorada
+        </button>
+      </div>
     `
     list.appendChild(card)
   })
 }
 
-async function verDetalhe(mentorada) {
+async function deletarMentorada(userId, nome) {
+  if (!confirm(`Remover "${nome}" permanentemente? Isso apagará todas as fases, tarefas e evidências dela.`)) return
+  // Deleta itens, fases e perfil (cascade cuida do resto)
+  await sb.from('itens').delete().eq('user_id', userId)
+  await sb.from('fases').delete().eq('user_id', userId)
+  await sb.from('profiles').delete().eq('id', userId)
+  showToast('Mentorada removida.')
+  await carregarPainelMentora()
+}
+
+async function verDetalhe(mentoradaRaw) {
+  const mentorada = typeof mentoradaRaw === 'string' ? JSON.parse(mentoradaRaw) : mentoradaRaw
   document.getElementById('mentoradas-list').style.display = 'none'
   const wrap = document.getElementById('detalhe-wrap')
   wrap.style.display = 'block'
