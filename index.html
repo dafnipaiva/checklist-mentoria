@@ -612,7 +612,7 @@ async function carregarPainelMentora() {
   document.getElementById('p-media').textContent = media + '%'
   document.getElementById('p-concluidas').textContent = concluidas
 
-  _mentораdasCache = stats
+  window._mentoradasCache = stats
   list.innerHTML = ''
   stats.forEach(m => {
     const initials = m.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
@@ -621,8 +621,6 @@ async function carregarPainelMentora() {
 
     const card = document.createElement('div')
     card.className = 'mentorada-card'
-    const mId = m.id
-    const mNome = m.nome
     card.innerHTML = `
       <div class="mentorada-row" onclick="verDetalhe_id('${m.id}')" style="cursor:pointer">
         <div class="avatar">${initials}</div>
@@ -636,7 +634,7 @@ async function carregarPainelMentora() {
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px;padding-top:10px;border-top:1px solid var(--border-light)">
-        <button class="btn btn-sm btn-danger" onclick="desativarMentorada('${m.id}', '${escHtml(m.nome)}')">
+        <button class="btn btn-sm btn-danger" onclick="removerMentorada('${m.id}', '${escHtml(m.nome)}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
           Remover mentorada
         </button>
@@ -646,19 +644,42 @@ async function carregarPainelMentora() {
   })
 }
 
-async function desativarMentorada(userId, nome) {
-  if (!confirm(`Remover "${nome}" do painel? Os dados dela ficam salvos mas ela some da listagem.`)) return
-  const { error } = await sb.from('profiles').update({ ativo: false }).eq('id', userId)
-  if (error) { showToast('Erro ao remover.'); console.error(error); return }
-  showToast(`${nome} removida do painel.`)
-  await carregarPainelMentora()
+async function removerMentorada(userId, nome) {
+  if (!confirm(`Remover "${nome}" permanentemente? O e-mail dela ficará livre para novo cadastro.`)) return
+
+  try {
+    const { data: { session } } = await sb.auth.getSession()
+    const token = session?.access_token
+    if (!token) return showToast('Sessão expirada. Faça login novamente.')
+
+    const resp = await fetch(
+      'https://rhdxfrfdngubofontiig.supabase.co/functions/v1/deletar-usuario',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId })
+      }
+    )
+
+    const result = await resp.json()
+    if (!resp.ok) {
+      showToast('Erro: ' + (result.error || 'não foi possível remover'))
+      return
+    }
+
+    showToast(`${nome} removida com sucesso.`)
+    await carregarPainelMentora()
+  } catch(e) {
+    console.error(e)
+    showToast('Erro de conexão.')
+  }
 }
 
-// Cache de mentoradas para verDetalhe por id
-let _mentораdasCache = []
-
-async function verDetalhe_id(userId) {
-  const m = _mentораdasCache.find(x => x.id === userId)
+function verDetalhe_id(userId) {
+  const m = (window._mentoradasCache || []).find(x => x.id === userId)
   if (m) verDetalhe(m)
 }
 
